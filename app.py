@@ -1,10 +1,18 @@
-from flask import Flask, render_template, request, send_file
+import streamlit as st
 import os
 from PIL import Image
 import io
 import matplotlib.pyplot as plt
 
-app = Flask(__name__)
+# Title of the web app
+st.title("🖼️ Image Upload, Process & Generate Code")
+
+# Description for the app
+st.markdown("""
+### 🚀 Welcome to the Image Uploader + Analyzer App!
+- Upload your image to view format, size, resolution and try simple image processing tools.
+- You can even download the processed image.
+""")
 
 # Directory where uploaded images will be saved
 upload_directory = 'uploaded_files'
@@ -13,79 +21,67 @@ upload_directory = 'uploaded_files'
 if not os.path.exists(upload_directory):
     os.makedirs(upload_directory)
 
+# File uploader
+uploaded_file = st.file_uploader("📁 Choose an image", type=["jpg", "jpeg", "png", "gif"])
 
-@app.route('/')
-def home():
-    return render_template("index.html")
+if uploaded_file is not None:
+    # Save the uploaded image
+    file_path = os.path.join(upload_directory, uploaded_file.name)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
+    # Load image using PIL
+    image = Image.open(uploaded_file)
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    uploaded_file = request.files['image']
+    # Display original image
+    st.subheader("🖼️ Uploaded Image Preview")
+    st.image(image, caption='Uploaded Image', use_column_width=True)
 
-    if uploaded_file:
-        # Save the uploaded image
-        file_path = os.path.join(upload_directory, uploaded_file.filename)
-        uploaded_file.save(file_path)
+    # Image Metadata
+    st.markdown("### 📊 Image Info")
+    st.write(f"**Filename:** `{uploaded_file.name}`")
+    st.write(f"**Format:** `{image.format}`")
+    st.write(f"**Mode:** `{image.mode}`")
+    st.write(f"**Resolution:** {image.size[0]}x{image.size[1]}")
+    image_size = os.path.getsize(file_path) / 1024
+    st.write(f"**Size:** {image_size:.2f} KB")
 
-        # Load image using PIL
-        image = Image.open(file_path)
+    # Optional: Convert to Grayscale
+    if st.checkbox("Convert to Grayscale"):
+        gray_img = image.convert("L")
+        st.image(gray_img, caption="🖤 Grayscale Image", use_column_width=True)
 
-        # Image Metadata
-        image_info = {
-            "filename": uploaded_file.filename,
-            "format": image.format,
-            "mode": image.mode,
-            "resolution": f"{image.size[0]}x{image.size[1]}",
-            "size": os.path.getsize(file_path) / 1024  # in KB
-        }
+        # Download grayscale image
+        buf = io.BytesIO()
+        gray_img.save(buf, format="PNG")
+        byte_im = buf.getvalue()
+        st.download_button(
+            label="📥 Download Grayscale Image",
+            data=byte_im,
+            file_name="grayscale_image.png",
+            mime="image/png"
+        )
 
-        # Convert to Grayscale if checked
-        gray_img = None
-        if request.form.get("grayscale"):
-            gray_img = image.convert("L")
-            # Save grayscale image
-            gray_img_path = os.path.join(upload_directory, 'grayscale_' + uploaded_file.filename)
-            gray_img.save(gray_img_path)
+    # Optional: Show histogram
+    if st.checkbox("📈 Show Image Histogram"):
+        st.write("🔍 Histogram (color distribution)")
+        plt.figure(figsize=(8, 4))
+        plt.title("Histogram")
+        if image.mode != "L":
+            for i, color in enumerate(["red", "green", "blue"]):
+                plt.hist(image.getdata(band=i), bins=256, color=color, alpha=0.5, label=color)
+        else:
+            plt.hist(image.getdata(), bins=256, color="gray")
+        plt.legend()
+        st.pyplot(plt)
 
-        # Histogram
-        histogram = None
-        if request.form.get("histogram"):
-            histogram = plot_histogram(image)
-
-        # Generate Python Code
-        generated_code = generate_python_code(uploaded_file.filename)
-
-        return render_template("result.html", image=image, image_info=image_info, grayscale_img=gray_img,
-                               histogram=histogram, generated_code=generated_code)
-
-    return "No file uploaded", 400
-
-
-def plot_histogram(image):
-    # Create histogram
-    plt.figure(figsize=(8, 4))
-    plt.title("Histogram")
-    if image.mode != "L":
-        for i, color in enumerate(["red", "green", "blue"]):
-            plt.hist(image.getdata(band=i), bins=256, color=color, alpha=0.5, label=color)
-    else:
-        plt.hist(image.getdata(), bins=256, color="gray")
-    plt.legend()
-
-    # Save the plot to a BytesIO object to send with response
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    return buf
-
-
-def generate_python_code(image_filename):
-    code = f"""
+    # Show generated code
+    st.subheader("🧾 Generated Python Code:")
+    generated_code = f"""
 from PIL import Image
 
 # Load the image
-image = Image.open("{image_filename}")
+image = Image.open("{uploaded_file.name}")
 
 # Get size
 width, height = image.size
@@ -99,8 +95,6 @@ print(f"Mode: {{image.mode}}")
 gray = image.convert("L")
 gray.save("grayscale_image.png")
 """
-    return code
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    st.code(generated_code, language='python')
+else:
+    st.info("Upload an image to get started.")
