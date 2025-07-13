@@ -1,0 +1,23 @@
+streamlit==1.34.0
+pandas==1.5.3
+scikit-learn==1.3.2
+matplotlib==3.8.4
+nltk==3.8.1
+PyPDF2==3.0.1
+python-docx==1.1.0
+spacy==3.7.4
+pdfplumber==0.10.3
+openpyxl==3.1.2
+deep-translator==1.11.4
+numpy==1.24.4
+Cython==0.29.36
+pymupdf==1.23.7
+transformers==4.38.2
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+torch==2.2.2
+>>>>>>> b5338d4 (💾 Save local changes before pulling)
+=======
+torch==2.2.2
+>>>>>>> b5338d4123ab822d91881e42e09544d4c406a755
